@@ -1,4 +1,4 @@
-import { BArray, Bytes, Enum, FixedLengthString, Int16ub, Int16ul, Int32ub, Int32ul, Int8u, Struct } from "../util/bin"
+import { BArray, Bytes, Enum, FixedLengthString, Int16ub, Int16ul, Int32ub, Int32ul, Int8u, Struct, HexView } from "../util/bin"
 import { decodePokeString } from "./poke-encoding"
 import { items } from "./types/items"
 import { moves } from "./types/moves"
@@ -23,7 +23,7 @@ export const Sprite = (width: number, height: number) => {
                 _type: 'sprite'
             }
         },
-    
+
         length: bytes.length
     }
 }
@@ -37,18 +37,18 @@ const Item = Enum(Int16ul, items)
 const UniqueIdentitySpec = Bytes(0x28)
 
 const IdentitySpec = Struct({
-    'unk0': Int32ub,
-    'unk1': Int32ub,
-    'unk2': Int16ub,
-    'unk3': Int16ub,
-    'trainerTID': Int16ub,
-    'trainerSID': Int16ub,
+    'unk0': Int32ul,
+    'unk1': Int32ul,
+    'unk2': Int16ul,
+    'unk3': Int16ul,
+    'trainerTID': Int16ul,
+    'trainerSID': Int16ul,
     'uniq': UniqueIdentitySpec,
     'evtBmp': Bytes(0x10),
     'trainerName': PokeString(8),
     'unk4': Int8u,
     'unk5': Int8u,
-    'unk6': Int8u,
+    'eventIndex': Int8u,
     'flags': Int8u,
     'protoVer': Int8u,
     'unk7': Int8u,
@@ -88,8 +88,9 @@ const health_data = Struct({
     'lastSyncTime': Int32ub,
     'totalDays': Int16ub,
     'curWatts': Int16ub,
-    'unk0': Int16ub,
-    'unk2': Int16ub,
+    'walkMinuteCounter': Int16ul,
+    'stepsThisWatt': Int8u,
+    'eventLogWriteIdx': Int8u,
     'padding': Bytes(3),
     'settings': Int8u,
 })
@@ -145,7 +146,7 @@ const team_data = Struct({
     'sid': Int16ul,
     'unk1': Bytes(4),
     'name': PokeString(8),
-    'unk2': BArray(3, 
+    'unk2': BArray(3,
         Struct({
             'flags': Int32ul,
             'val': Int16ul,
@@ -166,6 +167,7 @@ const event_log_item = Struct({
     'remoteTrnrName': PokeString(8),
     'pokeNick': PokeString(11),
     'remPokeNick': PokeString(11),
+    'routeName': PokeString(21),
     'routeImageIdx': Bytes(1),
     'pokeFriendship': Int8u,
     'watts': Int16ub,
@@ -175,7 +177,6 @@ const event_log_item = Struct({
     'eventType': Int16ul,
     'genderAndForm': Int8u,
     'caughtGenderAndForm': Int8u,
-    'padding': Bytes(42)
 })
 
 const route_info = Struct({
@@ -216,28 +217,32 @@ const special_route = Struct({
     'itemNameImg': Bytes(0x180),
 })
 
-const random_check_info = Struct({
-    'adrOfst': Int16ul,
-    'numBytes': Int8u,
-    'sum': Int8u,
+const sound_info = Struct({
+    'offset': Int16ul,
+    'length': Int8u,
+    'unk': Int8u,
+})
+
+const sound_frame = Struct({
+    'info': Int8u,
+    'periodIdx': Int8u,
 })
 
 const item_data = Struct({ 'item': Item, 'unused': Int16ul })
 
 const important_data = Struct({
     'adcCalibration': Bytes(2),
-    'adcReliable': Bytes(1),
+    'adcChecksum': Bytes(1),
     'uniq': UniqueIdentitySpec,
-    'uniqReliable': Bytes(1),
+    'uniqChecksum': Bytes(1),
     'lcdConfig': LcdConfigSpec,
-    'lcdReliable': Bytes(1),
+    'lcdChecksum': Bytes(1),
     'identity': IdentitySpec,
-    'identityReliable': Bytes(1),
+    'identityChecksum': Bytes(1),
     'health': health_data,
-    'healthReliable': Bytes(1),
+    'healthChecksum': Bytes(1),
     'copy': copy_marker,
-    'copyReliable': Bytes(1),
-    'padding': Bytes(0xF),
+    'padding': Bytes(0x10),
 })
 
 export const SpritesSpec = Struct({
@@ -416,7 +421,8 @@ export const format = Struct({
     'important2': important_data,
     'sprites': SpritesSpec,
     '???2': Bytes(64),
-    'randomCheck': Bytes(592),
+    'soundOffsets': BArray(16, sound_offset),
+    'soundData': BArray(264, sound_frame),
     'routeInfo': route_info,
     'areaSprite': Sprite(32, 24),
     'areaNameSprite': Sprite(80, 16),
