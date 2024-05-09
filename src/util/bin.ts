@@ -42,6 +42,18 @@ export const Int32ub = {
     length: 4
 }
 
+export const HexView = (spec: BinType<number>) => ({
+    read(data: DataView, offset: number): {_data: string, _annotate: string, _type: string} {
+        const value = spec.read(data, offset)
+        return {
+            _data: '0x' + value.toString(16).padStart(spec.length*2, '0'),
+            _annotate: value.toString(),
+            _type: 'hexView',
+        },
+        length: spec.length
+    }
+})
+
 export const Enum = (spec: BinType<number>, labels: string[]) => ({
     read(data: DataView, offset: number): { _data: number, _annotate: string, _type: 'enum' } {
         const value = spec.read(data, offset)
@@ -89,7 +101,7 @@ export function Struct<S extends { [key: string]: BinType<unknown> }, T extends 
             }
             return res as any
         },
-    
+
         length: Object.values(spec).map(el => el.length).reduce((a, b) => a + b, 0)
     }
 }
